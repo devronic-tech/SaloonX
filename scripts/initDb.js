@@ -1,5 +1,7 @@
-const { Client } = require('pg');
-require('dotenv').config();
+import { Client } from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 async function createDatabase() {
   const dbName = process.env.DB_NAME || 'salonx';
@@ -33,8 +35,4 @@ async function createDatabase() {
   }
 }
 
-if (require.main === module) {
-  createDatabase();
-}
-
-module.exports = createDatabase;
+export default createDatabase;
