@@ -19,7 +19,7 @@ await transporter.sendMail({
  <p>Dear SaloonX User,</p>
  <p>We have received a request to verify your email address ${email}. Please use the following OTP:</p>
  <h1>${otp}</h1>
- <p>OTP valid for 5 minutes</p>
+ <p>OTP valid for 2 minutes</p>
  `
 });
 

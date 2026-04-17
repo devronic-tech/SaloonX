@@ -9,8 +9,12 @@ import createDatabase from "./scripts/initDb.js";
 
 import "./models/User.js";
 import "./models/otpModel.js";
+import "./models/ownerModel.js";
+import "./models/ownerOtp.js";
 
 import authRoutes from "./routes/User.js";
+import ownerRoutes from "./routes/ownerRoutes.js";
+import serviceRoute from "./routes/serviceRoute.js"
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,6 +35,8 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/owner", ownerRoutes);
+app.use("/api/service",serviceRoute)
 
 
 
@@ -57,7 +63,9 @@ async function startServer() {
   console.log("Database connected successfully");
 
   // Sync Models
-  await sequelize.sync({ alter: true });
+  // Use force:true in development for schema changes, false in production
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  await sequelize.sync({ force: isDevelopment, alter: !isDevelopment });
   console.log("Models synced");
 
   app.listen(PORT, () => {

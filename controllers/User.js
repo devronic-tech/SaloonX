@@ -38,7 +38,7 @@ if(!validator.isEmail(email)){
 const otp = Math.floor(100000 + Math.random()*900000)
 
 const expires = new Date()
-expires.setMinutes(expires.getMinutes()+1)
+expires.setMinutes(expires.getMinutes()+2)
 
 // save otp
 await Otp.create({
