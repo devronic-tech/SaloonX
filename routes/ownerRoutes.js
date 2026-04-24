@@ -1,10 +1,12 @@
 import express from "express";
-import upload from "../middleware/upload.js";
+import upload from "../middleware/cloudUpload.js";
+import authMid from "../middleware/authMid.js";
 
 import {
 registerOwner,
 verifyOwnerOtp,
-loginOwner
+loginOwner,
+updateOwnerProfile
 } from "../controllers/ownerController.js";
 
 const router = express.Router();
@@ -21,5 +23,6 @@ router.post(
 router.post("/verify-owner-otp", verifyOwnerOtp)
 
 router.post("/login-owner",loginOwner)
+router.put("/update-profile", authMid, updateOwnerProfile);
 
 export default router

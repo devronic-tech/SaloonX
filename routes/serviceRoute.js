@@ -1,5 +1,5 @@
 import express from "express";
-import upload from "../middleware/upload.js";
+import upload from "../middleware/cloudUpload.js";
 import {
 createService,
 getServices
@@ -15,7 +15,7 @@ upload.single("serviceImg"),
 createService
 )
 
-router.post(
+router.get(
 "/get-services",
 authMiddleware,
 getServices

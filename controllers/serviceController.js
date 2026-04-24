@@ -12,7 +12,7 @@ message:"All fields required"
 })
 }
   
-const images = req.file ? req.file.filename : null
+const images = req.file ? req.file.path : null
 
 if(!images){
   return res.status(400).json({
@@ -49,7 +49,8 @@ const getServices = async (req,res)=>{
 
 try{
 
-const { saloonId } = req.body;
+// Use authenticated user's ID from middleware
+const saloonId = req.user.id;
 
 if(!saloonId){
 return res.status(400).json({
@@ -74,5 +75,9 @@ message:error.message
 }
 
 }
+
+
+
+
 
 export {createService,getServices}

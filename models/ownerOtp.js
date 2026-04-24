@@ -19,12 +19,19 @@ dob:{
 type:DataTypes.DATEONLY
 },
 
+address:{
+  type:DataTypes.STRING,
+  allowNull:false
+},
+
 profile_image:{
-  type:DataTypes.STRING
+  type:DataTypes.STRING,
+  allowNull:false
 },
 
 background_image:{
-  type:DataTypes.STRING
+  type:DataTypes.STRING,
+  allowNull:false
 },
 
 otp:{

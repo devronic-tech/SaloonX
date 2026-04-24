@@ -11,10 +11,12 @@ import "./models/User.js";
 import "./models/otpModel.js";
 import "./models/ownerModel.js";
 import "./models/ownerOtp.js";
+import "./models/salonModel.js";
 
 import authRoutes from "./routes/User.js";
 import ownerRoutes from "./routes/ownerRoutes.js";
 import serviceRoute from "./routes/serviceRoute.js"
+import salonRoutes from "./routes/salonRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +39,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/owner", ownerRoutes);
 app.use("/api/service",serviceRoute)
+app.use("/api/salon", salonRoutes);
 
 
 
@@ -53,6 +56,11 @@ app.get("/health", (req, res) => {
 
 // Start Server
 async function startServer() {
+ console.log('DB_USER:', process.env.DB_USER);
+ console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***' : 'undefined');
+ console.log('DB_HOST:', process.env.DB_HOST);
+ console.log('DB_PORT:', process.env.DB_PORT);
+ console.log('DB_DIALECT:', process.env.DB_DIALECT);
  try {
 
   // Create DB
@@ -65,7 +73,7 @@ async function startServer() {
   // Sync Models
   // Use force:true in development for schema changes, false in production
   const isDevelopment = process.env.NODE_ENV !== 'production';
-  await sequelize.sync({ force: isDevelopment, alter: !isDevelopment });
+  await sequelize.sync({ force: false, alter: true });
   console.log("Models synced");
 
   app.listen(PORT, () => {

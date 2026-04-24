@@ -9,14 +9,22 @@ id: {
     primaryKey: true,
   },
 name:{
-type:DataTypes.STRING,
-allowNull:false
+  type:DataTypes.STRING,
+  allowNull:false
+},
+salonName:{
+  type:DataTypes.STRING,
+  allowNull:true
+},
+address:{
+  type:DataTypes.STRING,
+  allowNull:false
 },
 
 email:{
-type:DataTypes.STRING,
-unique:true,
-allowNull:false
+  type:DataTypes.STRING,
+  unique:true,
+  allowNull:false
 },
 
 phone_number:{
@@ -51,8 +59,23 @@ password:{
 saloonImg:{
   type:DataTypes.ARRAY(DataTypes.STRING),
   allowNull:true
+},
+barber_names:{
+        type:DataTypes.ARRAY(DataTypes.STRING),
+        allowNull:true
+},
+aboutSalon:{
+  type:DataTypes.TEXT,
+  allowNull:true
+},
+salonStatus:{
+  type:DataTypes.ENUM('open','closed'),
+  defaultValue:'closed',
+  allowNull:true
 }
-},{
+},
+
+{
 timestamps:true,
 tableName:"owners"
 })
