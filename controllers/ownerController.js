@@ -6,22 +6,21 @@ import bcrypt from "bcrypt";
 
 const registerOwner = async (req,res)=>{
 
-const {name,email,phone_number,dob,password,address,barber_names} = req.body;
-console.log("Owner registration request:", {name,email,phone_number,dob,password,address});
+const {name, email, phone_number, dob, password, address, salonName, barber_names} = req.body;
+console.log("Owner registration request:", {name, email, phone_number, dob, password, address, salonName});
 console.log("Files:", req.files);
 
 const profileFile = req.files?.profile?.[0]
 const backgroundFile = req.files?.background?.[0]
-const profile = profileFile ? (profileFile.path || profileFile.filename || null) : null
-const background = backgroundFile ? (backgroundFile.path || backgroundFile.filename || null) : null
+const profile = profileFile ? (profileFile.path || profileFile.filename || null) : "default_profile.png"
+const background = backgroundFile ? (backgroundFile.path || backgroundFile.filename || null) : "default_bg.png"
 
-try{
-
-if(!name || !email || !phone_number || !dob || !password || !address  ){
-return res.status(400).json({
-message:"Please fill all fields"
-})
-}
+try {
+  if (!name || !email || !phone_number || !password || !address) {
+    return res.status(400).json({
+      message: "Please fill all required fields (name, email, phone, password, address)"
+    })
+  }
 
 // Basic email validation
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,11 +30,7 @@ message:"Invalid email"
 })
 }
 
-if(!profile || !background){
-  return res.status(400).json({
-    message:"Profile and background images are required"
-  })
-}
+// Images are optional for now, default values assigned above
 
 if(password.length < 6){
   return res.status(400).json({
@@ -43,17 +38,15 @@ if(password.length < 6){
   })
 }
 
-// Format DOB - handle both YYYY-MM-DD and DD-MM-YYYY formats
-let formattedDob = dob;
-if(dob.includes("-")) {
+// Format DOB if provided
+let formattedDob = dob || "2000-01-01";
+if (dob && dob.includes("-")) {
   const dobParts = dob.split("-");
-  if(dobParts.length === 3) {
-    // Check if it's YYYY-MM-DD format (HTML date input)
-    if(dobParts[0].length === 4) {
-      formattedDob = dob; // Already in YYYY-MM-DD format
+  if (dobParts.length === 3) {
+    if (dobParts[0].length === 4) {
+      formattedDob = dob;
     } else {
-      // Convert DD-MM-YYYY to YYYY-MM-DD
-      const [day,month,year] = dobParts;
+      const [day, month, year] = dobParts;
       formattedDob = `${year}-${month}-${day}`;
     }
   }
@@ -76,6 +69,18 @@ message:"Owner already exists"
 })
 }
 
+// Check for unique salon name
+if (salonName) {
+  const existSalon = await Owner.findOne({
+    where: { salonName: salonName }
+  });
+  if (existSalon) {
+    return res.status(400).json({
+      message: "Salon name already exists"
+    });
+  }
+}
+
 const hashedPassword = await bcrypt.hash(password, 10)
 
 const otp = Math.floor(100000 + Math.random()*900000)
@@ -84,18 +89,18 @@ const expires = new Date()
 expires.setMinutes(expires.getMinutes()+2)
 
 await OwnerOtp.create({
-
-name,
-email: email.toLowerCase(),
-phone_number,
-dob:formattedDob,
-address,
-profile_image:profile,
-background_image:background,
-password:hashedPassword,
-otp,
-expires_at:expires
-
+  name,
+  email: email.toLowerCase(),
+  phone_number,
+  dob: formattedDob,
+  address,
+  profile_image: profile,
+  background_image: background,
+  password: hashedPassword,
+  otp,
+  expires_at: expires,
+  salonName,
+  barber_names: [...new Set(Array.isArray(barber_names) ? barber_names : (barber_names ? barber_names.split(",") : []))]
 })
 
 await sendEmail(email,otp)
@@ -151,6 +156,8 @@ const owner = await Owner.create({
   profile_image: record.profile_image,
   background_image: record.background_image,
   password: record.password,
+  salonName: record.salonName,
+  barber_names: record.barber_names,
   is_verified: true
 })
 
@@ -204,8 +211,19 @@ const updateOwnerProfile = async (req, res) => {
       phone_number,
       barber_names,
       aboutSalon,
-      salonStatus
+      salonStatus,
+      existingPhotos
     } = req.body;
+
+    // Handle files if uploaded via multer
+    const profileFile = req.files?.profile?.[0];
+    const backgroundFile = req.files?.background?.[0];
+    const newSalonImages = req.files?.salon_image?.map(file => file.path) || [];
+    
+    let existingPhotosArray = [];
+    if (existingPhotos) {
+      existingPhotosArray = Array.isArray(existingPhotos) ? existingPhotos : JSON.parse(existingPhotos);
+    }
 
     console.log('Updating profile for userId:', userId);
 
@@ -234,16 +252,41 @@ const updateOwnerProfile = async (req, res) => {
       }
     }
 
-    // update fields
-    await owner.update({
+    // Check if salonName is being changed and if it already exists
+    if (salonName && salonName !== owner.salonName) {
+      const existingSalon = await Owner.findOne({
+        where: { salonName: salonName }
+      });
+      if (existingSalon) {
+        return res.status(400).json({
+          message: "Salon name already exists"
+        });
+      }
+    }
+
+    // Combine existing photos and newly uploaded ones
+    const combinedSalonImages = [...existingPhotosArray, ...newSalonImages];
+
+    const updateData = {
       salonName,
       address,
       email: email ? email.toLowerCase() : owner.email,
       phone_number,
-      barber_names,
+      barber_names: Array.isArray(barber_names) ? [...new Set(barber_names)] : barber_names,
       aboutSalon,
-      salonStatus
-    });
+      salonStatus,
+      saloonImg: combinedSalonImages
+    };
+
+    if (profileFile) {
+      updateData.profile_image = profileFile.path || profileFile.filename;
+    }
+    if (backgroundFile) {
+      updateData.background_image = backgroundFile.path || backgroundFile.filename;
+    }
+
+    // update fields
+    await owner.update(updateData);
 
     res.status(200).json({
       message: "Profile updated successfully",
@@ -322,6 +365,7 @@ user: {
   name: owner.name,
   email: owner.email,
   phone_number: owner.phone_number,
+  profile_image: owner.profile_image,
   role: 'owner'
 }
 })
@@ -336,5 +380,33 @@ message:error.message
 
 }
 
-export {registerOwner,verifyOwnerOtp,loginOwner,updateOwnerProfile}
+const getOwnerProfile = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    const owner = await Owner.findOne({
+      where: { id: req.user.id },
+      attributes: { exclude: ['password'] }
+    });
+    if (!owner) return res.status(404).json({ message: "Owner not found" });
+    res.status(200).json({ owner });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getAllSalons = async (req, res) => {
+  try {
+    const salons = await Owner.findAll({
+      where: { is_verified: true },
+      attributes: ['id', 'name', 'salonName', 'address', 'profile_image', 'saloonImg', 'salonStatus', 'aboutSalon']
+    });
+    res.status(200).json({ salons });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export {registerOwner,verifyOwnerOtp,loginOwner,updateOwnerProfile, getOwnerProfile, getAllSalons}
 

@@ -4,7 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 
-import sequelize from "./config/database.js";
+import sequelize, { switchToLocal } from "./config/database.js";
 import createDatabase from "./scripts/initDb.js";
 
 import "./models/User.js";
@@ -56,34 +56,40 @@ app.get("/health", (req, res) => {
 
 // Start Server
 async function startServer() {
- console.log('DB_USER:', process.env.DB_USER);
- console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***' : 'undefined');
- console.log('DB_HOST:', process.env.DB_HOST);
- console.log('DB_PORT:', process.env.DB_PORT);
- console.log('DB_DIALECT:', process.env.DB_DIALECT);
- try {
+  const isUsingUrl = !!process.env.DB_URL;
+  
+  try {
+    if (isUsingUrl) {
+      console.log("Attempting to connect to Remote Database (DB_URL)...");
+      try {
+        await sequelize.authenticate();
+        console.log("Connected to Remote Database successfully.");
+      } catch (urlError) {
+        console.error("Remote Database connection failed:", urlError.message);
+        switchToLocal();
+        await createDatabase();
+        await sequelize.authenticate();
+        console.log("Connected to Local Database successfully (Fallback).");
+      }
+    } else {
+      console.log("Using Local Database configuration.");
+      await createDatabase();
+      await sequelize.authenticate();
+      console.log("Connected to Local Database successfully.");
+    }
 
-  // Create DB
-  await createDatabase();
+    // Sync Models
+    await sequelize.sync({ force: false, alter: true });
+    console.log("Models synced");
 
-  // Connect DB
-  await sequelize.authenticate();
-  console.log("Database connected successfully");
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
 
-  // Sync Models
-  // Use force:true in development for schema changes, false in production
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  await sequelize.sync({ force: false, alter: true });
-  console.log("Models synced");
-
-  app.listen(PORT, () => {
-   console.log(`Server running on port ${PORT}`);
-  });
-
- } catch (error) {
-  console.error("Server start error:", error);
-  process.exit(1);
- }
+  } catch (error) {
+    console.error("Server start error:", error);
+    process.exit(1);
+  }
 }
 
 startServer();

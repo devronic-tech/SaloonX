@@ -44,6 +44,12 @@ type:DataTypes.DATE
 
 password:{
 type:DataTypes.STRING
+},
+salonName:{
+type:DataTypes.STRING
+},
+barber_names:{
+type:DataTypes.ARRAY(DataTypes.STRING)
 }
 
 },{

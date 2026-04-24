@@ -25,8 +25,13 @@ allowNull:false
 },
 
 serviceImg:{
-type:DataTypes.STRING,
+type:DataTypes.TEXT,
 allowNull:false
+},
+category: {
+type: DataTypes.STRING,
+allowNull: false,
+defaultValue: 'Haircut'
 }
 
 },{

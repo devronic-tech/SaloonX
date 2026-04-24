@@ -28,7 +28,7 @@ folder = "services"
 
 return{
 folder:folder,
-allowed_formats:["jpg","png","jpeg"]
+allowed_formats:["jpg","png","jpeg","webp","gif","svg"]
 }
 
 }
