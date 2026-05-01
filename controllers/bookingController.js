@@ -10,7 +10,7 @@ try{
 const {date,time_slot} = req.body;
 const {serviceId} = req.params;
 
-// Get user info from authenticated user
+// 🔥 logged-in user
 const user = await User.findOne({
 where:{ id: req.user.id }
 });
@@ -22,6 +22,7 @@ return res.status(404).json({ message:"User not found" });
 const user_name = user.name;
 const user_phone = user.phone_number;
 
+// 🔥 service
 const service = await Service.findOne({
 where:{ id: serviceId }
 });
@@ -43,9 +44,10 @@ status:["pending","accepted"]
 if(existing){
 return res.status(400).json({
 message:"Slot already booked"
-})
+});
 }
 
+// 🔥 create booking
 const booking = await Booking.create({
 
 service_id: service.id,
@@ -55,18 +57,26 @@ owner_id: service.owner_id,
 
 user_name,
 user_phone,
+user_id: user.id,   // ✅ IMPORTANT (needed for socket)
+
 date,
 time_slot,
 
-// Add pricing details from service
 service_charge: service.price || 0,
 platform_fee: 0,
 gst: 0,
 total: service.price || 0
-
 });
 
 console.log("Booking created with owner_id:", service.owner_id);
+
+// 🔥 SOCKET EMIT → OWNER
+const io = req.app.get("io");
+
+io.to(`owner_${service.owner_id}`).emit("new-booking", {
+message: "New booking received",
+booking
+});
 
 res.status(201).json({
 message:"Booking created",
@@ -98,8 +108,17 @@ if(booking.owner_id !== req.user.id){
 return res.status(403).json({ message:"Unauthorized" });
 }
 
+// update status
 booking.status = status;
 await booking.save();
+
+// 🔥 SOCKET EMIT → USER
+const io = req.app.get("io");
+
+io.to(`user_${booking.user_id}`).emit("booking-updated", {
+message: "Booking status updated",
+booking
+});
 
 res.json({
 message:"Booking updated",
@@ -112,17 +131,13 @@ res.status(500).json({ message:error.message })
 };
 
 
-// Owner Bookings
+// ✅ OWNER BOOKINGS
 const getOwnerBookings = async (req,res)=>{
 try{
-console.log("getOwnerBookings - req.user:", req.user);
 
 const bookings = await Booking.findAll({
 where:{ owner_id: req.user.id }
 });
-
-console.log("getOwnerBookings - Found bookings:", bookings.length);
-console.log("getOwnerBookings - owner_id used:", req.user.id);
 
 res.json({ bookings });
 
@@ -131,20 +146,18 @@ res.status(500).json({ message:error.message })
 }
 };
 
-// ✅ Get Accepted Bookings for Owner (for Today's Appointments)
+
+// ✅ ACCEPTED BOOKINGS
 const getAcceptedBookings = async (req,res)=>{
 try{
-console.log("getAcceptedBookings - req.user:", req.user);
 
 const bookings = await Booking.findAll({
 where:{ 
 owner_id: req.user.id,
 status: "accepted"
 },
-order: [["createdAt", "DESC"]] // Latest first
+order: [["createdAt", "DESC"]]
 });
-
-console.log("getAcceptedBookings - Found accepted bookings:", bookings.length);
 
 res.json({ bookings });
 
@@ -154,11 +167,10 @@ res.status(500).json({ message:error.message })
 };
 
 
-//User Bookings
+// ✅ USER BOOKINGS
 const getUserBookings = async (req,res)=>{
 try{
 
-// Get user info from authenticated user
 const user = await User.findOne({
 where:{ id: req.user.id }
 });
@@ -178,22 +190,15 @@ res.status(500).json({ message:error.message })
 }
 };
 
-// Debug - Get all bookings
+
+// DEBUG
 const getAllBookingsDebug = async (req,res)=>{
 try{
-console.log("getAllBookingsDebug - req.user:", req.user);
 
 const bookings = await Booking.findAll();
 
-console.log("getAllBookingsDebug - Total bookings:", bookings.length);
-
-// Get unique owner_ids
-const ownerIds = [...new Set(bookings.map(b => b.owner_id))];
-console.log("getAllBookingsDebug - Unique owner_ids:", ownerIds);
-
 res.json({ 
 bookings,
-ownerIds,
 currentUserId: req.user.id
 });
 
