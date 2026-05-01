@@ -348,7 +348,8 @@ if(!isPasswordValid){
 
 const token = jwt.sign({
 
-id:owner.id
+id:owner.id,
+salon_id:owner.id
 
 },
 process.env.JWT_SECRET,

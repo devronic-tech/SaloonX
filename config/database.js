@@ -40,18 +40,11 @@ const createUrlInstance = () => {
   });
 };
 
-let activeInstance = createUrlInstance() || createLocalInstance();
+// Default to local instance (skip remote URL)
+let activeInstance = createLocalInstance();
 
-// Proxy to allow switching instances dynamically
-const sequelizeProxy = new Proxy({}, {
-  get(target, prop) {
-    const val = activeInstance[prop];
-    if (typeof val === 'function') {
-      return val.bind(activeInstance);
-    }
-    return val;
-  }
-});
+// Export activeInstance directly
+export const getActiveInstance = () => activeInstance;
 
 export const switchToLocal = () => {
   console.log("Switching to local database configuration...");
@@ -59,6 +52,6 @@ export const switchToLocal = () => {
   return activeInstance;
 };
 
-export const getIsUsingUrl = () => !!(process.env.DB_URL && activeInstance.options.replication === undefined); // Simple check
+export const getIsUsingUrl = () => !!(process.env.DB_URL && activeInstance.options.replication === undefined);
 
-export default sequelizeProxy;
+export default activeInstance;

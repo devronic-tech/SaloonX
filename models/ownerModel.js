@@ -1,6 +1,8 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 
+console.log('Owner model: sequelize instance:', sequelize === undefined ? 'undefined' : 'defined');
+
 const Owner = sequelize.define("Owner",{
 
 id: {

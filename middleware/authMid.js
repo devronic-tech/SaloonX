@@ -17,12 +17,15 @@ const decoded = jwt.verify(
  process.env.JWT_SECRET
 )
 
+console.log("authMiddleware - decoded:", decoded);
+console.log("authMiddleware - user id:", decoded.id);
+
 req.user = decoded
 
 next()
 
 }catch(error){
-
+console.log("authMiddleware error:", error.message);
 res.status(401).json({
  message:"Invalid token"
 })

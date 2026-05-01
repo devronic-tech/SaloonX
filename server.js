@@ -12,12 +12,15 @@ import "./models/otpModel.js";
 import "./models/ownerModel.js";
 import "./models/ownerOtp.js";
 import "./models/salonModel.js";
+import "./models/Service.js";
+import "./models/Booking.js";
 
 import authRoutes from "./routes/User.js";
 import ownerRoutes from "./routes/ownerRoutes.js";
 import serviceRoute from "./routes/serviceRoute.js"
 import salonRoutes from "./routes/salonRoutes.js";
-
+import bookingRoutes from "./routes/bookingRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -40,10 +43,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/owner", ownerRoutes);
 app.use("/api/service",serviceRoute)
 app.use("/api/salon", salonRoutes);
-
-
-
-
+app.use("/api/booking", bookingRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health Check
 app.get("/health", (req, res) => {
@@ -52,7 +53,6 @@ app.get("/health", (req, res) => {
   message: "Backend is running"
  });
 });
-
 
 // Start Server
 async function startServer() {
