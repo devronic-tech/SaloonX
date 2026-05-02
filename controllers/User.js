@@ -5,6 +5,26 @@ import validator from "validator";
 import jwt from "jsonwebtoken";
 import sendEmail from "../utils/sendMail.js";
 
+// ✅ GET USER PROFILE
+const getUserProfile = async (req,res)=>{
+try{
+
+const user = await User.findOne({
+where:{ id: req.user.id },
+attributes: ["id", "name", "email", "phone_number"]
+});
+
+if(!user){
+return res.status(404).json({ message:"User not found" });
+}
+
+res.json({ user });
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
 
 const register = async (req,res)=>{
 
@@ -118,17 +138,19 @@ const token = jwt.sign(
  },
  process.env.JWT_SECRET,
  {
-  expiresIn:"7d"
+  expiresIn:"365d"
  }
 )
 
 // delete otp
 await record.destroy()
 
+// Add role property for frontend
+const userWithRole = { ...user.toJSON(), role: "customer" };
 res.status(201).json({
  message:"User registered successfully",
  token,
- user
+ user: userWithRole
 })
 
 }catch(error){
@@ -161,10 +183,12 @@ const login = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: "365d",
     });
 
-    res.json({ message: "Login successful", token, user });
+    // Add role property to user object for frontend
+    const userWithRole = { ...user.toJSON(), role: "customer" };
+    res.json({ message: "Login successful", token, user: userWithRole });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -172,4 +196,4 @@ const login = async (req, res) => {
 
 // ...existing code...
 
-export {register,verifyOtp,login}
+export {register,verifyOtp,login,getUserProfile}

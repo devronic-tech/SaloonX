@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
+import Owner from "./ownerModel.js";
 
 const Service = sequelize.define("Service",{
 
@@ -9,7 +10,12 @@ defaultValue:DataTypes.UUIDV4,
 primaryKey:true
 },
 
-saloon_id:{
+owner_id:{
+type:DataTypes.UUID,
+allowNull:false
+    },
+
+salon_id:{
 type:DataTypes.UUID,
 allowNull:false
 },
@@ -25,13 +31,13 @@ allowNull:false
 },
 
 serviceImg:{
-type:DataTypes.TEXT,
-allowNull:false
+type:DataTypes.ARRAY(DataTypes.STRING),
+defaultValue:[]
 },
-category: {
-type: DataTypes.STRING,
-allowNull: false,
-defaultValue: 'Haircut'
+
+category:{
+type:DataTypes.STRING,
+defaultValue:"Haircut"
 }
 
 },{
@@ -39,4 +45,6 @@ timestamps:true,
 tableName:"services"
 })
 
-export default Service
+Service.belongsTo(Owner, { foreignKey: 'owner_id', as: 'owner', constraints: false });
+
+export default Service;

@@ -1,6 +1,8 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 
+console.log('Owner model: sequelize instance:', sequelize === undefined ? 'undefined' : 'defined');
+
 const Owner = sequelize.define("Owner",{
 
 id: {
@@ -68,11 +70,19 @@ aboutSalon:{
   type:DataTypes.TEXT,
   allowNull:true
 },
-salonStatus:{
-  type:DataTypes.ENUM('open','closed'),
-  defaultValue:'closed',
-  allowNull:true
-}
+  salonStatus:{
+    type:DataTypes.ENUM('open','closed'),
+    defaultValue:'closed',
+    allowNull:true
+  },
+  total_rating: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0
+  },
+  rating_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  }
 },
 
 {

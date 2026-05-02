@@ -1,149 +1,148 @@
 import Service from "../models/Service.js";
+import Owner from "../models/ownerModel.js";
 
-const createService = async (req,res)=>{
-
+// ✅ GET SINGLE SERVICE
+const getService = async (req,res)=>{
 try{
-console.log("Create service request body:", req.body);
-console.log("Create service file:", req.file);
-console.log("Create service user:", req.user);
+const {id} = req.params;
 
-const {name, price, category} = req.body;
-const numericPrice = parseFloat(price);
-
-if(!name || isNaN(numericPrice)){
-  return res.status(400).json({
-    message: "Valid name and numeric price are required"
-  });
-}
-
-if(!req.user || !req.user.id){
-  return res.status(401).json({
-    message: "Unauthorized: User ID missing from token"
-  });
-}
-  
-const imagePath = req.file ? req.file.path : null;
-
-if(!imagePath){
-  return res.status(400).json({
-    message: "Service image is required"
-  });
-}
-
-console.log("Attempting to create service with:", {
-  saloon_id: req.user.id,
-  name,
-  price: numericPrice,
-  serviceImg: imagePath,
-  category: category || 'Haircut'
+const service = await Service.findOne({
+where:{ id }
 });
 
+if(!service){
+  return res.status(404).json({ message:"Service not found" });
+}
+
+// Fetch owner details to get barber names
+const owner = await Owner.findOne({
+  where: { id: service.salon_id },
+  attributes: ['salonName', 'barber_names']
+});
+
+res.json({ service, salon: owner });
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+
+const createService = async (req,res)=>{
+try{
+
+const {name,price,category} = req.body;
+
+if(!name || isNaN(parseFloat(price))){
+return res.status(400).json({
+message:"Valid name and price required"
+})
+}
+
+const images = req.file ? [req.file.path] : [];
+
+if(images.length === 0){
+return res.status(400).json({
+message:"Image required"
+})
+}
+
 const service = await Service.create({
-  saloon_id: req.user.id,
-  name,
-  price: numericPrice,
-  serviceImg: imagePath,
-  category: category || 'Haircut'
+
+owner_id: req.user.id,
+salon_id: req.user.salon_id,
+
+name,
+price: parseFloat(price),
+serviceImg: images,
+category: category || "Haircut"
+
 });
 
 res.status(201).json({
-  message: "Service created successfully",
-  service
+message:"Service created",
+service
 });
 
 }catch(error){
-console.error("Create service error:", error);
-res.status(500).json({
-message:error.message || "Internal server error during service creation",
-error: JSON.stringify(error, Object.getOwnPropertyNames(error))
-})
+res.status(500).json({ message:error.message })
 }
+};
 
-}
 
 const getServices = async (req,res)=>{
-
 try{
 
-// Use authenticated user's ID from middleware
-const saloonId = req.user.id;
-
-if(!saloonId){
-return res.status(400).json({
-message:"Saloon ID is required"
-})
-}
-               
 const services = await Service.findAll({
-where:{saloon_id:saloonId}
-})
-console.log(services)
-res.json({
-services
-})
+where:{ owner_id: req.user.id }
+});
+
+res.json({ services });
 
 }catch(error){
-      console.log(error.message)
-res.status(500).json({
-message:error.message
-})
-
+res.status(500).json({ message:error.message })
 }
+};
 
-}
 
-
-const updateService = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, price, category } = req.body;
-    const saloonId = req.user.id;
-
-    if (!name || isNaN(parseFloat(price))) {
-      return res.status(400).json({
-        message: "Valid name and numeric price are required"
-      });
+// ✅ GET ALL SERVICES (Public)
+const getAllServices = async (req,res)=>{
+  try{
+    const { salon_id } = req.query;
+    console.log("getAllServices request - salon_id:", salon_id);
+    
+    let whereClause = {};
+    if (salon_id && salon_id !== "undefined") {
+      whereClause.salon_id = salon_id;
     }
 
-    const service = await Service.findOne({
-      where: { id, saloon_id: saloonId }
+    const services = await Service.findAll({
+      where: whereClause,
+      include: [{
+        model: Owner,
+        as: 'owner',
+        attributes: ['salonName', 'total_rating', 'rating_count']
+      }]
     });
+    
+    res.json({ services });
 
-    if (!service) {
-      return res.status(404).json({
-        message: "Service not found or unauthorized"
-      });
-    }
-
-    await service.update({
-      name,
-      price: parseFloat(price),
-      category: category || service.category
-    });
-
-    res.status(200).json({
-      message: "Service updated successfully",
-      service
-    });
-
-  } catch (error) {
-    console.error("Update service error:", error);
-    res.status(500).json({
-      message: error.message || "Internal server error during service update",
-      error: JSON.stringify(error, Object.getOwnPropertyNames(error))
-    });
+  }catch(error){
+    console.error("Error in getAllServices:", error);
+    res.status(500).json({ message:error.message })
   }
 };
 
-const getAllServices = async (req, res) => {
-  try {
-    const { saloon_id } = req.query;
-    const whereClause = saloon_id ? { saloon_id } : {};
-    const services = await Service.findAll({ where: whereClause });
-    res.status(200).json({ services });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+
+// ✅ UPDATE SERVICE
+const updateService = async (req,res)=>{
+try{
+
+const {id} = req.params;
+const {name, price, category} = req.body;
+
+const service = await Service.findOne({
+where:{ id, owner_id: req.user.id }
+});
+
+if(!service){
+return res.status(404).json({ message:"Service not found" });
+}
+
+if(name) service.name = name;
+if(price) service.price = parseFloat(price);
+if(category) service.category = category;
+
+await service.save();
+
+res.json({
+message:"Service updated",
+service
+});
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
 };
 
-export {createService, getServices, updateService, getAllServices}
+export { createService, getServices, getAllServices, updateService, getService };

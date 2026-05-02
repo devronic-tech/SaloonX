@@ -1,0 +1,284 @@
+import { Op } from "sequelize";
+import Booking from "../models/Booking.js";
+import Service from "../models/Service.js";
+import User from "../models/User.js";
+import Owner from "../models/ownerModel.js";
+
+
+// ✅ CREATE BOOKING
+const createBooking = async (req,res)=>{
+try{
+
+const {date,time_slot, barber} = req.body;
+const {serviceId} = req.params;
+
+// 🔥 logged-in user
+const user = await User.findOne({
+where:{ id: req.user.id }
+});
+
+if(!user){
+return res.status(404).json({ message:"User not found" });
+}
+
+const user_name = user.name;
+const user_phone = user.phone_number;
+
+// 🔥 service
+const service = await Service.findOne({
+where:{ id: serviceId }
+});
+
+if(!service){
+return res.status(404).json({ message:"Service not found" });
+}
+
+// prevent double booking
+const existing = await Booking.findOne({
+where:{
+service_id: serviceId,
+date,
+time_slot,
+status:["pending","accepted"]
+}
+});
+
+if(existing){
+return res.status(400).json({
+message:"Slot already booked"
+});
+}
+
+// 🔥 create booking
+const booking = await Booking.create({
+  user_id: user.id,
+  service_id: service.id,
+  service_name: service.name,
+  salon_id: service.salon_id,
+  owner_id: service.owner_id,
+
+  user_name,
+user_phone,
+user_id: user.id,   // ✅ IMPORTANT (needed for socket)
+
+date,
+time_slot,
+barber,
+
+service_charge: service.price || 0,
+platform_fee: 0,
+gst: 0,
+total: service.price || 0
+});
+
+console.log("Booking created with owner_id:", service.owner_id);
+
+// 🔥 SOCKET EMIT → OWNER
+const io = req.app.get("io");
+
+io.to(`owner_${service.owner_id}`).emit("new-booking", {
+message: "New booking received",
+booking
+});
+
+res.status(201).json({
+message:"Booking created",
+booking
+});
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+
+// ✅ OWNER ACCEPT / REJECT
+const updateBookingStatus = async (req,res)=>{
+try{
+
+const {bookingId} = req.params;
+const {status} = req.body;
+
+const booking = await Booking.findOne({
+where:{ id: bookingId }
+});
+
+if(!booking){
+return res.status(404).json({ message:"Booking not found" });
+}
+
+if(booking.owner_id !== req.user.id){
+return res.status(403).json({ message:"Unauthorized" });
+}
+
+// update status
+booking.status = status;
+await booking.save();
+
+// 🔥 SOCKET EMIT → USER & OWNER
+const io = req.app.get("io");
+
+// Emit to User
+io.to(`user_${booking.user_id}`).emit("booking-updated", {
+  message: "Booking status updated",
+  booking
+});
+
+// Emit to Owner (so other dashboard components refresh)
+io.to(`owner_${booking.owner_id}`).emit("booking-updated", {
+  message: "Booking status updated",
+  booking
+});
+
+res.json({
+message:"Booking updated",
+booking
+});
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+
+// ✅ OWNER BOOKINGS
+const getOwnerBookings = async (req,res)=>{
+try{
+
+const bookings = await Booking.findAll({
+  where:{ owner_id: req.user.id },
+  order: [["createdAt", "DESC"]]
+});
+
+res.json({ bookings });
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+
+// ✅ ACCEPTED BOOKINGS
+const getAcceptedBookings = async (req,res)=>{
+try{
+
+const bookings = await Booking.findAll({
+where:{ 
+owner_id: req.user.id,
+status: "accepted"
+},
+order: [["createdAt", "DESC"]]
+});
+
+res.json({ bookings });
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+
+// ✅ USER BOOKINGS
+const getUserBookings = async (req,res)=>{
+try{
+
+const user = await User.findOne({
+where:{ id: req.user.id }
+});
+
+if(!user){
+return res.status(404).json({ message:"User not found" });
+}
+
+    const bookings = await Booking.findAll({
+      where: { 
+        [Op.or]: [
+          { user_id: req.user.id },
+          { user_phone: user.phone_number }
+        ]
+      },
+      include: [{
+        model: Owner,
+        as: 'salon',
+        attributes: ['salonName', 'address', 'profile_image']
+      }]
+    });
+
+res.json({ bookings });
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+
+// DEBUG
+const getAllBookingsDebug = async (req,res)=>{
+try{
+
+const bookings = await Booking.findAll();
+
+res.json({ 
+bookings,
+currentUserId: req.user.id
+});
+
+}catch(error){
+res.status(500).json({ message:error.message })
+}
+};
+
+// ✅ SUBMIT RATING
+const submitRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, review } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be between 1 and 5" });
+    }
+
+    const booking = await Booking.findOne({ where: { id } });
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (booking.status !== "completed") {
+      return res.status(400).json({ message: "You can only rate completed bookings" });
+    }
+
+    if (booking.rating) {
+      return res.status(400).json({ message: "You have already rated this booking" });
+    }
+
+    // Update booking
+    await booking.update({ rating, review });
+
+    // Update Owner stats
+    const owner = await Owner.findOne({ where: { id: booking.owner_id } });
+    if (owner) {
+      const newRatingCount = (owner.rating_count || 0) + 1;
+      const newTotalRating = (owner.total_rating || 0) + rating;
+      await owner.update({
+        rating_count: newRatingCount,
+        total_rating: newTotalRating
+      });
+    }
+
+    res.json({ message: "Rating submitted successfully", booking });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export {
+createBooking,
+updateBookingStatus,
+getOwnerBookings,
+getAcceptedBookings,
+getUserBookings,
+submitRating,
+getAllBookingsDebug
+};

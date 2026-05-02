@@ -12,8 +12,8 @@ console.log("Files:", req.files);
 
 const profileFile = req.files?.profile?.[0]
 const backgroundFile = req.files?.background?.[0]
-const profile = profileFile ? (profileFile.path || profileFile.filename || null) : "default_profile.png"
-const background = backgroundFile ? (backgroundFile.path || backgroundFile.filename || null) : "default_bg.png"
+const profile = profileFile ? (profileFile.path || profileFile.filename || null) : "/user.jpg"
+const background = backgroundFile ? (backgroundFile.path || backgroundFile.filename || null) : "/banner.jpg"
 
 try {
   if (!name || !email || !phone_number || !password || !address) {
@@ -169,7 +169,7 @@ email:owner.email
 },
 process.env.JWT_SECRET,
 {
-expiresIn:"7d"
+expiresIn:"365d"
 }
 )
 
@@ -348,12 +348,13 @@ if(!isPasswordValid){
 
 const token = jwt.sign({
 
-id:owner.id
+id:owner.id,
+salon_id:owner.id
 
 },
 process.env.JWT_SECRET,
 {
-expiresIn:"7d"
+expiresIn:"365d"
 }
 )
 
@@ -400,7 +401,7 @@ const getAllSalons = async (req, res) => {
   try {
     const salons = await Owner.findAll({
       where: { is_verified: true },
-      attributes: ['id', 'name', 'salonName', 'address', 'profile_image', 'saloonImg', 'salonStatus', 'aboutSalon']
+      attributes: ['id', 'name', 'salonName', 'address', 'profile_image', 'saloonImg', 'salonStatus', 'aboutSalon', 'total_rating', 'rating_count']
     });
     res.status(200).json({ salons });
   } catch (error) {

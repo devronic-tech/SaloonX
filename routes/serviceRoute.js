@@ -4,7 +4,8 @@ import {
 createService,
 getServices,
 updateService,
-getAllServices
+getAllServices,
+getService
 } from "../controllers/serviceController.js";
 
 import authMiddleware from "../middleware/authMid.js";
@@ -12,6 +13,8 @@ import authMiddleware from "../middleware/authMid.js";
 const router = express.Router();
 
 router.get("/all-services", getAllServices);
+router.get("/get-services", authMiddleware, getServices);
+router.get("/:id", getService);
 router.put("/update-service/:id", authMiddleware, updateService);
 router.post(
   "/create-service",
@@ -31,10 +34,5 @@ router.post(
   createService
 );
 
-router.get(
-"/get-services",
-authMiddleware,
-getServices
-)
 
 export default router
